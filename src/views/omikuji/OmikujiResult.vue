@@ -24,8 +24,44 @@ function back() { router.push("/omikuji"); }
         <h2>第 {{ r.number }} 籤 — {{ r.lot_title || r.title || "吉籤" }}</h2>
       </div>
       <pre class="poem" v-if="r.poem">{{ r.poem }}</pre>
-      <p v-if="r.interpretation"><b>解：</b>{{ r.interpretation }}</p>
+      <p v-if="r.interpretation" class="interpretation"><b>解：</b>{{ r.interpretation }}</p>
       <p v-if="r.advice"><b>建議：</b>{{ r.advice }}</p>
+
+      <!-- GPT 進階建議 -->
+      <div v-if="r.gpt" class="gpt-block">
+        <p v-if="r.gpt.one_line"><b>重點：</b>{{ r.gpt.one_line }}</p>
+
+        <div v-if="r.gpt.actions?.length">
+          <b>行動清單：</b>
+          <ol>
+            <li v-for="(a,i) in r.gpt.actions" :key="'act'+i">{{ a }}</li>
+          </ol>
+        </div>
+
+        <div v-if="r.gpt.risks?.length">
+          <b>風險提醒：</b>
+          <ul>
+            <li v-for="(x,i) in r.gpt.risks" :key="'risk'+i">{{ x }}</li>
+          </ul>
+        </div>
+
+        <p v-if="r.gpt.timing"><b>時機：</b>{{ r.gpt.timing.window }}（力度：{{ r.gpt.timing.strength }}）</p>
+
+        <details v-if="r.gpt.other_aspects">
+          <summary>其他面向</summary>
+          <ul>
+            <li><b>感情：</b>{{ r.gpt.other_aspects.love }}</li>
+            <li><b>事業：</b>{{ r.gpt.other_aspects.career }}</li>
+            <li><b>財富：</b>{{ r.gpt.other_aspects.wealth }}</li>
+            <li><b>健康：</b>{{ r.gpt.other_aspects.health }}</li>
+          </ul>
+        </details>
+
+        <p v-if="r.gpt.keywords?.length" class="tags">
+          <b>關鍵字：</b>
+          <span v-for="(k,i) in r.gpt.keywords" :key="'kw'+i" class="tag">{{ k }}</span>
+        </p>
+      </div>
 
       <!-- Debug 區塊（精簡 + 去重 + 更多保護） -->
       <details v-if="d" class="debug">
@@ -33,8 +69,9 @@ function back() { router.push("/omikuji"); }
           除錯資訊
           <span class="pill" :class="d.gpt_keywords ? 'ok' : 'warn'">關鍵詞 GPT: {{ d.gpt_keywords ? 'ON' : 'OFF' }}</span>
           <span class="pill" :class="d.gpt_rerank ? 'ok' : 'warn'">重排 GPT: {{ d.gpt_rerank ? 'ON' : 'OFF' }}</span>
-          <span class="pill">KW: {{ d.model_keywords || '-' }}</span>
-          <span class="pill">Rerank: {{ d.model_rerank || '-' }}</span>
+          <span class="pill">KW: {{ d.kw_model || '-' }}</span>
+          <span class="pill">Rerank: {{ d.rank_model || '-' }}</span>
+          <span class="pill">選取：{{ d.selection_method || d.selection?.method || '-' }}</span>
           <span v-if="d.rank_error_detail" class="pill err">{{ d.rank_error_detail }}</span>
         </summary>
 
@@ -43,9 +80,40 @@ function back() { router.push("/omikuji"); }
           <div><b>kw_attempted</b>：{{ d.kw_attempted ?? '-' }}</div>
           <div><b>rank_attempted</b>：{{ d.rank_attempted ?? '-' }}</div>
           <div><b>cands</b>：{{ d.cands ?? 0 }}</div>
-          <div><b>model_keywords</b>：<code>{{ d.model_keywords || '-' }}</code></div>
-          <div><b>model_rerank</b>：<code>{{ d.model_rerank || '-' }}</code></div>
+          <div><b>kw_model</b>：<code>{{ d.kw_model || '-' }}</code></div>
+          <div><b>rank_model</b>：<code>{{ d.rank_model || '-' }}</code></div>
+            <!-- 新增：選取方式與最終選中的 id -->
+          <div><b>selection.method</b>：{{ d.selection?.method || '-' }}</div>
+          <div><b>picked_id</b>：{{ d.selection?.picked_id ?? '-' }}</div>
+          <div v-if="d.selection?.top3?.length" class="tablewrap" style="margin-top:8px;">
+          <table class="mini" v-if="(d.selection?.top3?.length || d.rerank_preview?.length)">
+            <thead><tr><th>rank</th><th>id</th><th>reason</th></tr></thead>
+            <tbody>
+              <tr v-for="row in (d.selection?.top3 || d.rerank_preview || [])" :key="row.id">
+                <td>{{ row.rank }}</td>
+                <td>{{ row.id }}</td>
+                <td>{{ row.reason || '-' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
           <div class="col-span-2"><b>kw</b>：<code>{{ d.kw }}</code></div>
+        </div>
+
+        <!-- 卦象細節 -->
+        <div v-if="d.hex" style="margin-top:8px;">
+          <b>Hexagram</b>
+          <div class="grid">
+            <div><b>method</b>：{{ d.hex.method }}</div>
+            <div><b>moving</b>：{{ d.hex.moving }}</div>
+            <div><b>base</b>：{{ d.hex.base }}</div>
+            <div><b>changed</b>：{{ d.hex.changed }}</div>
+            <div><b>upper/lower</b>：{{ d.hex.upper }} / {{ d.hex.lower }}</div>
+            <div><b>nuclear</b>：{{ d.hex.nuclear?.upper }} / {{ d.hex.nuclear?.lower }}</div>
+            <div class="col-span-2"><b>lines</b>：<code>{{ d.hex.lines }}</code></div>
+            <div class="col-span-2"><b>summary</b>：{{ d.hex.summary }}</div>
+            <div class="col-span-2"><b>advice_general</b>：{{ d.hex.advice_general }}</div>
+          </div>
         </div>
 
         <!-- 錯誤膠囊 -->
@@ -134,4 +202,8 @@ function back() { router.push("/omikuji"); }
 .mini th, .mini td { border:1px solid #eee; padding:4px 6px; text-align:left; }
 .sql { margin-top:8px; }
 .sql pre { white-space:pre-wrap; background:#fafafa; padding:8px; border-radius:8px; }
+.interpretation {
+  white-space: pre-wrap;    /* 保留換行與自動換行 */
+  line-height: 1.7;
+}
 </style>
