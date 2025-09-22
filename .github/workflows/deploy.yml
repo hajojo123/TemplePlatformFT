@@ -49,7 +49,7 @@ jobs:
 
       - name: Deploy on local VM (compose pull & up)
         run: |
-          sudo mkdir -p /srv/temple-frontend
+          mkdir -p /srv/temple-frontend
           cd /srv/temple-frontend
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           docker compose pull
