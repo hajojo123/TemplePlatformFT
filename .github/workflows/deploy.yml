@@ -7,7 +7,7 @@ on:
 
 permissions:
   contents: read
-  packages: write   # 推 GHCR 需要123
+  packages: write   # 推 GHCR 需要456
 
 env:
   IMAGE_LATEST: ghcr.io/hajojo123/templeplatformft-frontend:latest
