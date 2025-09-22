@@ -1,0 +1,57 @@
+name: FE Build → GHCR → Local Deploy (Self-hosted)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  packages: write   # 推 GHCR 需要
+
+env:
+  IMAGE_LATEST: ghcr.io/hajojo123/templeplatformft-frontend:latest
+  IMAGE_SHA: ghcr.io/hajojo123/templeplatformft-frontend:${{ github.sha }}
+
+jobs:
+  build-push-deploy:
+    runs-on: [self-hosted, frontend]   # ← 確保你的 runner 有 frontend 這個 label（或改成你的 label）
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Build frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE_LATEST }}
+            ${{ env.IMAGE_SHA }}
+
+      - name: Deploy on local VM (compose pull & up)
+        run: |
+          sudo mkdir -p /srv/temple-frontend
+          cd /srv/temple-frontend
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker compose pull
+          docker compose up -d
+          docker image prune -f
