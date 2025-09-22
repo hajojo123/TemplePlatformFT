@@ -7,7 +7,7 @@ on:
 
 permissions:
   contents: read
-  packages: write   # 推 GHCR 需要
+  packages: write   # 推 GHCR 需要123
 
 env:
   IMAGE_LATEST: ghcr.io/hajojo123/templeplatformft-frontend:latest
@@ -54,4 +54,5 @@ jobs:
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           docker compose pull
           docker compose up -d
-          docker image prune -f
+          docker image prune -f 
+          
